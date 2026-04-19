@@ -12,8 +12,8 @@ import {
 
 const CHECKS = []
 
-function check(category, id, label, run) {
-  CHECKS.push({ category, id, label, run })
+function check(category, id, label, run, meta) {
+  CHECKS.push({ category, id, label, run, ...(meta || {}) })
 }
 
 function indexedStoreRules(ruleset) {
@@ -81,6 +81,10 @@ check('rulesets', 'c1180_store_rule_triplet_pattern', "Store rules must be used 
     }
   }
   return fails
+}, {
+  fields: [
+    'value.current_ruleset.rules[].filter',
+  ],
 })
 
 check('stock_requests', 'c1180_orchestration_missing_orchestration_buffer', "Orchestration requests must use 'orchestration_buffer' in endpoint buffer", (envData) => {
@@ -100,6 +104,11 @@ check('stock_requests', 'c1180_orchestration_missing_orchestration_buffer', "Orc
     }
   }
   return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.aggregates.*.deduction.endpoint_buffer',
+  ],
 })
 
 check('stock_requests', 'c1180_attributes_not_wildcard', "Export, orchestration and DP requests must take all UATFs into account", (envData) => {
@@ -121,6 +130,11 @@ check('stock_requests', 'c1180_attributes_not_wildcard', "Export, orchestration 
     }
   }
   return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.aggregates.*.deduction.attributes',
+  ],
 })
 
 check('stock_requests', 'c1180_endpoint_reservation_not_empty', "Export, orchestration and DP requests must take all stock location reservations into account", (envData) => {
@@ -142,6 +156,11 @@ check('stock_requests', 'c1180_endpoint_reservation_not_empty', "Export, orchest
     }
   }
   return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.aggregates.*.deduction.endpoint_reservation',
+  ],
 })
 
 check('stock_requests', 'c1180_global_buffer_not_empty', "Export and DP requests must take all global buffers into account", (envData) => {
@@ -163,6 +182,11 @@ check('stock_requests', 'c1180_global_buffer_not_empty', "Export and DP requests
     }
   }
   return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.aggregates.*.deduction.global_buffer',
+  ],
 })
 
 check('stock_requests', 'c1180_export_diff_unreferenced_stock', "Export diff requests must export unreferenced items", (envData) => {
@@ -180,6 +204,11 @@ check('stock_requests', 'c1180_export_diff_unreferenced_stock', "Export diff req
     }
   }
   return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.diff.unreferenced_stock',
+  ],
 })
 
 check('stock_requests', 'c1180_orchestration_has_global_buffer', "Orchestration requests must not take global buffers into account", (envData) => {
@@ -199,6 +228,11 @@ check('stock_requests', 'c1180_orchestration_has_global_buffer', "Orchestration 
     }
   }
   return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.aggregates.*.deduction.global_buffer',
+  ],
 })
 
 check('rulesets', 'c1180_timetable_country_mismatch', "Store rule timetable must match country in rule name", (envData) => {
@@ -215,6 +249,11 @@ check('rulesets', 'c1180_timetable_country_mismatch', "Store rule timetable must
     })
   }
   return fails
+}, {
+  fields: [
+    'value.current_ruleset.rules[].name',
+    'value.current_ruleset.rules[].countdown_timetable.name',
+  ],
 })
 
 check('rulesets', 'c1180_p1_store_rule_config', "P1 store rule must have max 10 candidates, rule_timeout 3600, and sorting by stock coverage (desc)", (envData) => {
@@ -232,6 +271,14 @@ check('rulesets', 'c1180_p1_store_rule_config', "P1 store rule must have max 10 
     }
   }
   return fails
+}, {
+  fields: [
+    'value.current_ruleset.rules[].filter',
+    'value.current_ruleset.rules[].max',
+    'value.current_ruleset.rules[].rule_timeout',
+    'value.current_ruleset.rules[].sort_criteria',
+    'value.current_ruleset.rules[].stock_constraints',
+  ],
 })
 
 check('rulesets', 'c1180_p2_store_rule_config', "P2 store rule must have max 20 candidates, rule_timeout 3600, and sorting by stock coverage (desc)", (envData) => {
@@ -249,9 +296,17 @@ check('rulesets', 'c1180_p2_store_rule_config', "P2 store rule must have max 20 
     }
   }
   return fails
+}, {
+  fields: [
+    'value.current_ruleset.rules[].filter',
+    'value.current_ruleset.rules[].max',
+    'value.current_ruleset.rules[].rule_timeout',
+    'value.current_ruleset.rules[].sort_criteria',
+    'value.current_ruleset.rules[].stock_constraints',
+  ],
 })
 
-check('rulesets', 'c1180_general_store_rule_config', "General store rule must have rule_timeout=7200 and stock_constraints=[]", (envData) => {
+check('rulesets', 'c1180_general_store_rule_config', "No priority store rules must have timeout of 7200", (envData) => {
   const fails = []
   for (const [rsId, ruleset] of Object.entries(envData.rulesets?.rulesets || {})) {
     const stores = indexedStoreRules(ruleset)
@@ -263,6 +318,12 @@ check('rulesets', 'c1180_general_store_rule_config', "General store rule must ha
     }
   }
   return fails
+}, {
+  fields: [
+    'value.current_ruleset.rules[].filter',
+    'value.current_ruleset.rules[].rule_timeout',
+    'value.current_ruleset.rules[].stock_constraints',
+  ],
 })
 
 for (const [method, phases] of Object.entries(METHOD_OPERATIONS)) {
@@ -285,6 +346,12 @@ for (const [method, phases] of Object.entries(METHOD_OPERATIONS)) {
         }
       })
       return fails
+    },
+    {
+      fields: [
+        'value.delivery_method',
+        ...Object.keys(phases).map(phase => `value.operations.${phase}`),
+      ],
     }
   )
 }
@@ -315,6 +382,11 @@ check('rulesets', 'c1180_store_before_warehouse_per_split', "Warehouse rules mus
     }
   }
   return fails
+}, {
+  fields: [
+    'value.current_ruleset.rules[].name',
+    'value.current_ruleset.rules[].filter',
+  ],
 })
 
 export default CHECKS

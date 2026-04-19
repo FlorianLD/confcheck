@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import { parseZips, MAX_ZIP_FILES } from './lib/parseZip.js'
 import { runChecks, totalFailures } from './lib/checks/index.js'
+import { buildShareUrl, readShareFromUrl, clearShareHash } from './lib/share.js'
 import './App.css'
 
 const ENV_COLORS = [
@@ -35,29 +36,56 @@ function elementHref(site, env, linkPath) {
 
 function ElementId({ id }) {
   const parts = id.split(' → ')
+  const [first, ...rest] = parts
+  const [copied, setCopied] = useState(false)
+  const timerRef = useRef(null)
+
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current)
+  }, [])
+
+  const onCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(first)
+      setCopied(true)
+      if (timerRef.current) clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(() => setCopied(false), 1200)
+    } catch {
+      /* clipboard unavailable; do nothing */
+    }
+  }, [first])
+
   return (
     <span className="element-id">
-      {parts.map((part, i) => (
+      <button type="button" className="element-id-clickable" onClick={onCopy} title="Click to copy">
+        {first}
+      </button>
+      {rest.map((part, i) => (
         <span key={i} className="element-id-part">
-          {i > 0 && (
-            <svg className="element-id-sep" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          )}
+          <svg className="element-id-sep" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
           <span>{part}</span>
         </span>
       ))}
+      <span className={`element-id-copied ${copied ? 'element-id-copied--visible' : ''}`} aria-hidden="true">copied</span>
     </span>
   )
 }
 
-function EnvPill({ env, allEnvs, href, onToggle, onVisit, active = true }) {
+function EnvPill({ env, allEnvs, href, onToggle, onVisit, count, active = true }) {
   const style = envColor(env, allEnvs)
   const cls = `env-pill ${active ? '' : 'env-pill--off'}`
+  const content = (
+    <>
+      <span className="env-pill-name">{env}</span>
+      {count != null && <span className="env-pill-count">{count}</span>}
+    </>
+  )
   if (href) {
     return (
       <a className={`${cls} env-pill--link`} style={style} href={href} target="_blank" rel="noreferrer" onClick={() => onVisit?.()}>
-        {env}
+        {content}
       </a>
     )
   }
@@ -70,11 +98,11 @@ function EnvPill({ env, allEnvs, href, onToggle, onVisit, active = true }) {
         onClick={onToggle}
         aria-pressed={active}
       >
-        {env}
+        {content}
       </button>
     )
   }
-  return <span className={cls} style={style}>{env}</span>
+  return <span className={cls} style={style}>{content}</span>
 }
 
 const LAST_VISITED_KEY = 'confcheck:lastVisitedElement'
@@ -83,6 +111,7 @@ function ResultsView({ results, allEnvs, site }) {
   const [collapsedCats, setCollapsedCats] = useState(() => new Set())
   const [collapsedTests, setCollapsedTests] = useState(() => new Set())
   const [activeEnvs, setActiveEnvs] = useState(() => new Set(allEnvs))
+  const [hideEmptyTests, setHideEmptyTests] = useState(true)
   const [lastVisitedId, setLastVisitedId] = useState(() => {
     try { return localStorage.getItem(LAST_VISITED_KEY) || null } catch { return null }
   })
@@ -95,6 +124,17 @@ function ResultsView({ results, allEnvs, site }) {
   }, [lastVisitedId])
 
   const clearLastVisited = useCallback(() => setLastVisitedId(null), [])
+
+  const [showBackToTop, setShowBackToTop] = useState(false)
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > 400)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
 
   const toggleEnv = useCallback((env) => {
     setActiveEnvs(prev => {
@@ -116,13 +156,40 @@ function ResultsView({ results, allEnvs, site }) {
               .map(f => ({ ...f, envs: f.envs.filter(e => activeEnvs.has(e)) }))
               .filter(f => f.envs.length > 0),
           }))
-          .filter(t => t.failures.length > 0),
+          .filter(t => !hideEmptyTests || t.failures.length > 0),
       }))
-      .filter(cat => cat.tests.length > 0)
-  }, [results, activeEnvs])
+      .filter(cat => !hideEmptyTests || cat.tests.length > 0)
+  }, [results, activeEnvs, hideEmptyTests])
 
   const total = useMemo(() => totalFailures(filteredResults), [filteredResults])
   const grandTotal = useMemo(() => totalFailures(results), [results])
+
+  const perEnv = useMemo(() => {
+    const map = Object.fromEntries(allEnvs.map(e => [e, 0]))
+    for (const cat of results) {
+      for (const t of cat.tests) {
+        for (const f of t.failures) {
+          for (const e of f.envs) {
+            if (map[e] != null) map[e]++
+          }
+        }
+      }
+    }
+    return map
+  }, [results, allEnvs])
+
+  const inAllEnvs = useMemo(() => {
+    if (allEnvs.length < 2) return 0
+    let n = 0
+    for (const cat of results) {
+      for (const t of cat.tests) {
+        for (const f of t.failures) {
+          if (f.envs.length === allEnvs.length) n++
+        }
+      }
+    }
+    return n
+  }, [results, allEnvs])
 
   const toggleCat = useCallback((id) => {
     setCollapsedCats(prev => {
@@ -177,7 +244,7 @@ function ResultsView({ results, allEnvs, site }) {
       <div className="results-header">
         <button
           type="button"
-          className="results-header-left collapse-all-btn"
+          className="collapse-all-btn results-header-cell results-header-cell--row1-left"
           onClick={toggleAll}
           aria-pressed={allCollapsed}
           aria-label={allCollapsed ? 'Expand all sections' : 'Collapse all sections'}
@@ -186,14 +253,26 @@ function ResultsView({ results, allEnvs, site }) {
           <span className={`chevron ${allCollapsed ? 'chevron--collapsed' : ''}`}>▾</span>
           <h2>{total} mistake{total === 1 ? '' : 's'} found</h2>
         </button>
-        <div className="results-envs">
+        <div className="results-header-cell results-header-cell--row1-right">
           {site && (site.site_name || site.site_id) && (
             <span className="site-chip">
               {site.site_name && <span className="site-chip-name">{site.site_name}</span>}
-              {site.site_id && <span className="site-chip-id">#{site.site_id}</span>}
+              {site.site_id && <span className="site-chip-id">{site.site_id}</span>}
             </span>
           )}
-          <span className="results-envs-label">across</span>
+        </div>
+        <label className="hide-empty-toggle results-header-cell results-header-cell--row2-left">
+          <span className="toggle">
+            <input
+              type="checkbox"
+              checked={hideEmptyTests}
+              onChange={e => setHideEmptyTests(e.target.checked)}
+            />
+            <span className="toggle-slider" />
+          </span>
+          Hide checks with no mistakes
+        </label>
+        <div className="results-envs results-header-cell results-header-cell--row2-right">
           {allEnvs.map(e => (
             <EnvPill
               key={e}
@@ -201,17 +280,23 @@ function ResultsView({ results, allEnvs, site }) {
               allEnvs={allEnvs}
               active={activeEnvs.has(e)}
               onToggle={() => toggleEnv(e)}
+              count={allEnvs.length > 1 ? perEnv[e] : null}
             />
           ))}
+          {allEnvs.length > 1 && (
+            <span className="results-envs-extra" title="Failures present in every environment">
+              <span className="results-envs-extra-value">{inAllEnvs}</span>
+              in all envs
+            </span>
+          )}
         </div>
       </div>
       {activeEnvs.size === 0 ? (
         <div className="empty-results">
           <h2>No environments selected</h2>
-          <p>Click an environment pill above to include its results.</p>
+          <p>Use an environment filter above to include its results.</p>
         </div>
-      ) : null}
-      {filteredResults.map(cat => {
+      ) : filteredResults.map(cat => {
         const catCollapsed = collapsedCats.has(cat.id)
         const catTotal = cat.tests.reduce((n, t) => n + t.failures.length, 0)
         return (
@@ -224,7 +309,7 @@ function ResultsView({ results, allEnvs, site }) {
             >
               <span className={`chevron ${catCollapsed ? 'chevron--collapsed' : ''}`}>▾</span>
               <h3>{cat.label}</h3>
-              <span className="category-count">{catTotal}</span>
+              <span className={`category-count ${catTotal === 0 ? 'category-count--empty' : ''}`}>{catTotal}</span>
             </button>
             {!catCollapsed && cat.tests.map(test => {
               const testKey = `${cat.id}\u0000${test.id}`
@@ -245,8 +330,28 @@ function ResultsView({ results, allEnvs, site }) {
                           {test.siteScope}
                         </span>
                       )}
+                      {test.fields && test.fields.length > 0 && (
+                        <span
+                          className="info-icon"
+                          tabIndex={0}
+                          aria-label="Fields inspected by this check"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="16" x2="12" y2="12" />
+                            <line x1="12" y1="8" x2="12.01" y2="8" />
+                          </svg>
+                          <span className="info-tooltip">
+                            <span className="info-tooltip-title">Fields inspected</span>
+                            {test.fields.map(f => (
+                              <code key={f} className="info-tooltip-field">{f}</code>
+                            ))}
+                          </span>
+                        </span>
+                      )}
                     </h4>
-                    <span className="test-count">{test.failures.length}</span>
+                    <span className={`test-count ${test.failures.length === 0 ? 'test-count--empty' : ''}`}>{test.failures.length}</span>
                   </button>
                   {!testCollapsed && (
                     <ul>
@@ -286,12 +391,37 @@ function ResultsView({ results, allEnvs, site }) {
           </section>
         )
       })}
+      {showBackToTop && (
+        <button
+          type="button"
+          className="back-to-top"
+          onClick={scrollToTop}
+          aria-label="Scroll to top"
+          title="Scroll to top"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="6 15 12 9 18 15" />
+          </svg>
+        </button>
+      )}
     </div>
   )
 }
 
 export default function App() {
-  const [state, setState] = useState({ status: 'idle' })
+  const [state, setState] = useState(() => {
+    const shared = readShareFromUrl()
+    if (shared && shared.allEnvs.length > 0) {
+      return {
+        status: 'done',
+        fileName: 'shared view',
+        results: shared.results,
+        allEnvs: [...shared.allEnvs].sort(),
+        site: shared.site,
+      }
+    }
+    return { status: 'idle' }
+  })
   const [dragOver, setDragOver] = useState(false)
   const inputRef = useRef(null)
 
@@ -334,16 +464,55 @@ export default function App() {
   const reset = useCallback(() => {
     setState({ status: 'idle' })
     if (inputRef.current) inputRef.current.value = ''
+    clearShareHash()
   }, [])
+
+  const [shareCopied, setShareCopied] = useState(false)
+  const shareTimerRef = useRef(null)
+  useEffect(() => () => {
+    if (shareTimerRef.current) clearTimeout(shareTimerRef.current)
+  }, [])
+  const onShare = useCallback(async () => {
+    if (state.status !== 'done') return
+    try {
+      const url = buildShareUrl({ results: state.results, allEnvs: state.allEnvs, site: state.site })
+      await navigator.clipboard.writeText(url)
+      setShareCopied(true)
+      if (shareTimerRef.current) clearTimeout(shareTimerRef.current)
+      shareTimerRef.current = setTimeout(() => setShareCopied(false), 1500)
+    } catch {
+      /* clipboard unavailable */
+    }
+  }, [state.status, state.results, state.allEnvs, state.site])
 
   if (state.status === 'done') {
     return (
       <div className="app">
         <header className="app-header">
-          <button type="button" className="app-title" onClick={reset}>
-            <h1>Confcheck</h1>
+          <div className="app-header-left">
+            <button type="button" className="app-title" onClick={reset}>
+              <h1>Confcheck</h1>
+            </button>
+            <p className="tagline">Check configuration mistakes across environments</p>
+          </div>
+          <button
+            type="button"
+            className="share-btn app-header-share"
+            onClick={onShare}
+            title="Copy a link that opens this exact view (no zip needed by the recipient)"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="18" cy="5" r="3" />
+              <circle cx="6" cy="12" r="3" />
+              <circle cx="18" cy="19" r="3" />
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+            </svg>
+            <span className="share-btn-label">
+              <span className="share-btn-label-ghost" aria-hidden="true">Link copied</span>
+              <span className="share-btn-label-text">{shareCopied ? 'Link copied' : 'Share view'}</span>
+            </span>
           </button>
-          <p className="tagline">Check configuration mistakes across environments</p>
         </header>
         <main>
           <ResultsView results={state.results} allEnvs={state.allEnvs} site={state.site} />

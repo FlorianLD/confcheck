@@ -59,34 +59,37 @@ async function parseEnvZip(file) {
   const data = {}
   let info = null
 
+  const tasks = []
   for (const [path, entry] of Object.entries(zip.files)) {
     if (entry.dir) continue
-    const parts = path.split(/[\/\\]/).filter(Boolean)
+    const parts = path.split(/[/\\]/).filter(Boolean)
     const fileName = parts[parts.length - 1]
 
     if (fileName === 'export.info') {
-      try {
-        const raw = await entry.async('string')
-        info = JSON.parse(raw)
-      } catch (err) {
-        console.warn(`Failed to parse ${path} in ${file.name}: ${err.message}`)
-      }
+      tasks.push(entry.async('string').then(raw => {
+        try {
+          info = JSON.parse(raw)
+        } catch (err) {
+          console.warn(`Failed to parse ${path} in ${file.name}: ${err.message}`)
+        }
+      }))
       continue
     }
 
     const target = matchTarget(fileName)
     if (!target) continue
 
-    const raw = await entry.async('string')
-    const text = target.isJsonc ? stripJsonc(raw) : raw
-    let parsed
-    try {
-      parsed = JSON.parse(text)
-    } catch (err) {
-      throw new Error(`Failed to parse ${path} in ${file.name}: ${err.message}`)
-    }
-    data[target.base] = parsed
+    tasks.push(entry.async('string').then(raw => {
+      const text = target.isJsonc ? stripJsonc(raw) : raw
+      try {
+        data[target.base] = JSON.parse(text)
+      } catch (err) {
+        throw new Error(`Failed to parse ${path} in ${file.name}: ${err.message}`)
+      }
+    }))
   }
+
+  await Promise.all(tasks)
 
   if (Object.keys(data).length === 0) {
     throw new Error(`${file.name} contains no rulesets / stock_requests / delivery_configs files.`)
