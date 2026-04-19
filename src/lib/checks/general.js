@@ -21,8 +21,8 @@ import {
 
 const CHECKS = []
 
-function check(category, id, label, run) {
-  CHECKS.push({ category, id, label, run })
+function check(category, id, label, run, meta) {
+  CHECKS.push({ category, id, label, run, ...(meta || {}) })
 }
 
 // ---------------------------- RULESETS ----------------------------
@@ -40,6 +40,11 @@ check('rulesets', 'r_store_empty_calendars', 'Store rule must not have an empty 
     })
   }
   return fails
+}, {
+  fields: [
+    'value.current_ruleset.rules[].filter',
+    'value.current_ruleset.rules[].countdown_timetable.current_timetable.timespans[].options.rules_enabled',
+  ],
 })
 
 check('rulesets', 'r_warehouse_no_auto_claim', "Warehouse rule must have automatic warehouse claim parameter", (envData) => {
@@ -52,6 +57,12 @@ check('rulesets', 'r_warehouse_no_auto_claim', "Warehouse rule must have automat
     })
   }
   return fails
+}, {
+  fields: [
+    'value.current_ruleset.rules[].filter',
+    'value.current_ruleset.rules[].custom_action',
+    'value.current_ruleset.rules[].custom_action_params.to_state',
+  ],
 })
 
 check('rulesets', 'r_warehouse_rules_no_warehouse_query', "Ruleset with warehouse rules must use a stock request with warehouse endpoint", (envData) => {
@@ -68,6 +79,13 @@ check('rulesets', 'r_warehouse_rules_no_warehouse_query', "Ruleset with warehous
     if (!anyHasWarehouse) fails.push({ id: rsId })
   }
   return fails
+}, {
+  fields: [
+    'value.current_ruleset.rules[].filter',
+    'value.current_ruleset.stock_requests',
+    'stock_requests.*.value.current.body.aggregates.*.endpoint_filter.request_name',
+    'stock_requests.*.value.current.body.inherit_from_request',
+  ],
 })
 
 check('rulesets', 'r_store_rules_no_store_query', "Ruleset with store rules must use a stock request with store endpoint", (envData) => {
@@ -84,6 +102,13 @@ check('rulesets', 'r_store_rules_no_store_query', "Ruleset with store rules must
     if (!anyHasStore) fails.push({ id: rsId })
   }
   return fails
+}, {
+  fields: [
+    'value.current_ruleset.rules[].filter',
+    'value.current_ruleset.stock_requests',
+    'stock_requests.*.value.current.body.aggregates.*.endpoint_filter.request_name',
+    'stock_requests.*.value.current.body.inherit_from_request',
+  ],
 })
 
 check('rulesets', 'r_country_mismatch_query', "Country in rules must match country in stock request", (envData) => {
@@ -105,6 +130,11 @@ check('rulesets', 'r_country_mismatch_query', "Country in rules must match count
     if (!overlap) fails.push({ id: rsId })
   }
   return fails
+}, {
+  fields: [
+    'value.current_ruleset.rules[].filter',
+    'value.current_ruleset.stock_requests',
+  ],
 })
 
 check('rulesets', 'r_store_no_timeout', "Store rule must have a timeout", (envData) => {
@@ -117,6 +147,11 @@ check('rulesets', 'r_store_no_timeout', "Store rule must have a timeout", (envDa
     })
   }
   return fails
+}, {
+  fields: [
+    'value.current_ruleset.rules[].filter',
+    'value.current_ruleset.rules[].rule_timeout',
+  ],
 })
 
 check('rulesets', 'r_collection_store_no_ckc', "Ruleset with automatic claiming on collection store must use a CKC-enabled stock request", (envData) => {
@@ -131,6 +166,13 @@ check('rulesets', 'r_collection_store_no_ckc', "Ruleset with automatic claiming 
     if (!anyCkc) fails.push({ id: rsId })
   }
   return fails
+}, {
+  fields: [
+    'value.current_ruleset.rules[].custom_action',
+    'value.current_ruleset.stock_requests',
+    'stock_requests.*.name',
+    'stock_requests.*.value.current.body.aggregates.*.endpoint_filter.request_name',
+  ],
 })
 
 check('rulesets', 'r_country_name_mismatch', "Country in ruleset must match country in ruleset name", (envData) => {
@@ -147,6 +189,11 @@ check('rulesets', 'r_country_name_mismatch', "Country in ruleset must match coun
     }
   }
   return fails
+}, {
+  fields: [
+    'name',
+    'value.current_ruleset.rules[].filter',
+  ],
 })
 
 // ---------------------------- STOCK REQUESTS ----------------------------
@@ -162,6 +209,11 @@ check('stock_requests', 's_export_no_export_endpoint', "Export requests must use
     if (!anyExport) fails.push({ id: srId })
   }
   return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.aggregates.*.endpoint_filter.request_name',
+  ],
 })
 
 check('stock_requests', 's_non_export_uses_export_endpoint', "Non-export requests must not use an export endpoint request", (envData) => {
@@ -179,6 +231,11 @@ check('stock_requests', 's_non_export_uses_export_endpoint', "Non-export request
     }
   }
   return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.aggregates.*.endpoint_filter.request_name',
+  ],
 })
 
 check('stock_requests', 's_endpoint_filter_use_requested_ids_true', "Requests must not have filtering enabled for endpoint request", (envData) => {
@@ -195,6 +252,10 @@ check('stock_requests', 's_endpoint_filter_use_requested_ids_true', "Requests mu
     }
   }
   return fails
+}, {
+  fields: [
+    'value.current.body.aggregates.*.endpoint_filter.use_requested_ids',
+  ],
 })
 
 check('stock_requests', 's_item_query_no_filtering', "Requests must have filtering enabled for item request", (envData) => {
@@ -211,6 +272,10 @@ check('stock_requests', 's_item_query_no_filtering', "Requests must have filteri
     }
   }
   return fails
+}, {
+  fields: [
+    'value.current.body.aggregates.*.item_filter.use_requested_ids',
+  ],
 })
 
 check('stock_requests', 's_full_param_missing', "Full export requests must have export parameter set to full", (envData) => {
@@ -224,6 +289,11 @@ check('stock_requests', 's_full_param_missing', "Full export requests must have 
     if (diff.only_change_stock !== false) fails.push({ id: srId })
   }
   return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.diff.only_change_stock',
+  ],
 })
 
 check('stock_requests', 's_diff_param_missing', "Diff export requests must have export parameter set to diff", (envData) => {
@@ -240,6 +310,11 @@ check('stock_requests', 's_diff_param_missing', "Diff export requests must have 
     if (diff.only_change_stock !== true) fails.push({ id: srId })
   }
   return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.diff.only_change_stock',
+  ],
 })
 
 check('stock_requests', 's_orchestration_detailed_unused', "Orchestration detailed requests must be used in a ruleset", (envData) => {
@@ -264,6 +339,11 @@ check('stock_requests', 's_orchestration_detailed_unused', "Orchestration detail
     if (!referenced.has(srId)) fails.push({ id: srId })
   }
   return fails
+}, {
+  fields: [
+    'rulesets.*.value.current_ruleset.stock_requests',
+    'stock_requests.*.value.current.body.inherit_from_request',
+  ],
 })
 
 check('stock_requests', 's_dp_detailed_unused', "DP detailed requests must be used in a delivery config", (envData) => {
@@ -287,6 +367,11 @@ check('stock_requests', 's_dp_detailed_unused', "DP detailed requests must be us
     if (!referenced.has(srId)) fails.push({ id: srId })
   }
   return fails
+}, {
+  fields: [
+    'delivery_configs.*.value.stock_request',
+    'stock_requests.*.value.current.body.inherit_from_request',
+  ],
 })
 
 check('stock_requests', 's_export_diff_key_mismatch', "Export requests diff key must match request name", (envData) => {
@@ -300,6 +385,11 @@ check('stock_requests', 's_export_diff_key_mismatch', "Export requests diff key 
     if (diff.key !== expected) fails.push({ id: srId })
   }
   return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.diff.key',
+  ],
 })
 
 check('stock_requests', 's_unified_aggregates_not_empty', "Unified requests aggregates must inherit from the detailed request", (envData) => {
@@ -311,6 +401,11 @@ check('stock_requests', 's_unified_aggregates_not_empty', "Unified requests aggr
     if (Object.keys(aggregates).length > 0) fails.push({ id: srId })
   }
   return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.aggregates',
+  ],
 })
 
 check('stock_requests', 's_unified_no_unification', "Unified requests must have unification enabled", (envData) => {
@@ -323,6 +418,12 @@ check('stock_requests', 's_unified_no_unification', "Unified requests must have 
     if (!enabled) fails.push({ id: srId })
   }
   return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.unification.by_endpoint',
+    'value.current.body.unification.by_stock_type',
+  ],
 })
 
 check('stock_requests', 's_unified_no_inheritance', "Unified requests must inherit from the right detailed request", (envData) => {
@@ -338,6 +439,11 @@ check('stock_requests', 's_unified_no_inheritance', "Unified requests must inher
     }
   }
   return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.inherit_from_request',
+  ],
 })
 
 check('stock_requests', 's_detailed_no_global_reservations', "Detailed requests must have global reservations enabled", (envData) => {
@@ -350,6 +456,11 @@ check('stock_requests', 's_detailed_no_global_reservations', "Detailed requests 
     if (!deduction || !('global_reservation' in deduction)) fails.push({ id: srId })
   }
   return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.deduction.global_reservation',
+  ],
 })
 
 // ---------------------------- DELIVERY CONFIGS ----------------------------
@@ -371,6 +482,11 @@ check('delivery_configs', 'd_method_not_in_name', "Delivery method must match de
     }
   })
   return fails
+}, {
+  fields: [
+    'name',
+    'value.delivery_method',
+  ],
 })
 
 check('delivery_configs', 'd_module_method_mismatch', "CKC delivery configs must have CKC module enabled", (envData) => {
@@ -383,6 +499,11 @@ check('delivery_configs', 'd_module_method_mismatch', "CKC delivery configs must
     if (!ok) fails.push({ id: name })
   })
   return fails
+}, {
+  fields: [
+    'value.delivery_method',
+    'value.required_modules',
+  ],
 })
 
 check('delivery_configs', 'd_name_country_vs_stock_request', "Country in delivery config name must match country in stock request", (envData) => {
@@ -395,6 +516,11 @@ check('delivery_configs', 'd_name_country_vs_stock_request', "Country in deliver
     if (nameCountry !== sqCountry) fails.push({ id: name })
   })
   return fails
+}, {
+  fields: [
+    'name',
+    'value.stock_request',
+  ],
 })
 
 check('delivery_configs', 'd_ckc_express_no_from_destination', "CKC express configs must have operation 'from_destination'", (envData) => {
@@ -407,6 +533,11 @@ check('delivery_configs', 'd_ckc_express_no_from_destination', "CKC express conf
     }
   })
   return fails
+}, {
+  fields: [
+    'value.delivery_method',
+    'value.operations.from_destination',
+  ],
 })
 
 check('delivery_configs', 'd_method_options_mismatch', "Carrier options must match delivery config name", (envData) => {
@@ -433,6 +564,12 @@ check('delivery_configs', 'd_method_options_mismatch', "Carrier options must mat
     }
   })
   return fails
+}, {
+  fields: [
+    'name',
+    'value.delivery_method',
+    'value.carriers[].option',
+  ],
 })
 
 check('delivery_configs', 'd_unified_detailed_mismatch', "Delivery configs unified stock request must match the detailed one", (envData) => {
@@ -453,6 +590,11 @@ check('delivery_configs', 'd_unified_detailed_mismatch', "Delivery configs unifi
     if (!detailedExists) fails.push({ id: name })
   })
   return fails
+}, {
+  fields: [
+    'value.stock_request',
+    'stock_requests.*.value.current.body.inherit_from_request',
+  ],
 })
 
 export default CHECKS

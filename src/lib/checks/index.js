@@ -60,23 +60,30 @@ export function runChecks(envs, siteId) {
   }
 
   const byCategory = new Map()
-  for (const entry of aggregator.values()) {
-    if (!byCategory.has(entry.category)) {
-      byCategory.set(entry.category, {
-        id: entry.category,
-        label: entry.categoryLabel,
+
+  // Seed every check so tests with zero failures still appear in the output.
+  for (const c of checks) {
+    if (!byCategory.has(c.category)) {
+      byCategory.set(c.category, {
+        id: c.category,
+        label: CATEGORIES[c.category],
         tests: new Map(),
       })
     }
-    const cat = byCategory.get(entry.category)
-    if (!cat.tests.has(entry.checkId)) {
-      cat.tests.set(entry.checkId, {
-        id: entry.checkId,
-        label: entry.checkLabel,
-        siteScope: entry.checkSiteScope,
+    const cat = byCategory.get(c.category)
+    if (!cat.tests.has(c.id)) {
+      cat.tests.set(c.id, {
+        id: c.id,
+        label: c.label,
+        siteScope: c.siteScope ?? null,
+        fields: c.fields ?? null,
         failures: [],
       })
     }
+  }
+
+  for (const entry of aggregator.values()) {
+    const cat = byCategory.get(entry.category)
     cat.tests.get(entry.checkId).failures.push({
       elementId: entry.elementId,
       linkPath: entry.linkPath,
