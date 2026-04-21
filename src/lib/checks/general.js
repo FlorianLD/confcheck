@@ -27,7 +27,7 @@ function check(category, id, label, run, meta) {
 
 // ---------------------------- RULESETS ----------------------------
 
-check('rulesets', 'r_store_empty_calendars', 'Store rule must not have an empty calendar', (envData) => {
+check('rulesets', 'r_store_empty_calendars', 'Store rules must not have an empty calendar', (envData) => {
   const fails = []
   for (const [rsId, ruleset] of Object.entries(envData.rulesets?.rulesets || {})) {
     const rules = getRulesetRules(ruleset)
@@ -47,7 +47,7 @@ check('rulesets', 'r_store_empty_calendars', 'Store rule must not have an empty 
   ],
 })
 
-check('rulesets', 'r_warehouse_no_auto_claim', "Warehouse rule must have automatic warehouse claim parameter", (envData) => {
+check('rulesets', 'r_warehouse_no_auto_claim', "Warehouse rules must have automatic warehouse claim parameter", (envData) => {
   const fails = []
   for (const [rsId, ruleset] of Object.entries(envData.rulesets?.rulesets || {})) {
     const rules = getRulesetRules(ruleset)
@@ -137,7 +137,7 @@ check('rulesets', 'r_country_mismatch_query', "Country in rules must match count
   ],
 })
 
-check('rulesets', 'r_store_no_timeout', "Store rule must have a timeout", (envData) => {
+check('rulesets', 'r_store_no_timeout', "Store rules must have a timeout", (envData) => {
   const fails = []
   for (const [rsId, ruleset] of Object.entries(envData.rulesets?.rulesets || {})) {
     const rules = getRulesetRules(ruleset)

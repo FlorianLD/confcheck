@@ -256,7 +256,7 @@ check('rulesets', 'c1180_timetable_country_mismatch', "Store rule timetable must
   ],
 })
 
-check('rulesets', 'c1180_p1_store_rule_config', "P1 store rule must have max 10 candidates, rule_timeout 3600, and sorting by stock coverage (desc)", (envData) => {
+check('rulesets', 'c1180_p1_store_rule_config', "P1 store rules must have max 10 candidates, rule_timeout 3600, and sorting by stock coverage (desc)", (envData) => {
   const fails = []
   for (const [rsId, ruleset] of Object.entries(envData.rulesets?.rulesets || {})) {
     const stores = indexedStoreRules(ruleset)
@@ -281,7 +281,7 @@ check('rulesets', 'c1180_p1_store_rule_config', "P1 store rule must have max 10 
   ],
 })
 
-check('rulesets', 'c1180_p2_store_rule_config', "P2 store rule must have max 20 candidates, rule_timeout 3600, and sorting by stock coverage (desc)", (envData) => {
+check('rulesets', 'c1180_p2_store_rule_config', "P2 store rules must have max 20 candidates, rule_timeout 3600, and sorting by stock coverage (desc)", (envData) => {
   const fails = []
   for (const [rsId, ruleset] of Object.entries(envData.rulesets?.rulesets || {})) {
     const stores = indexedStoreRules(ruleset)
