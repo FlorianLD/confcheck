@@ -1,5 +1,6 @@
 import generalChecks from './general.js'
 import c1180Checks from './sites/c1180.js'
+import { SHORT_IDS } from './short-ids.js'
 
 const CATEGORIES = {
   rulesets: 'Rulesets',
@@ -74,6 +75,7 @@ export function runChecks(envs, siteId) {
     if (!cat.tests.has(c.id)) {
       cat.tests.set(c.id, {
         id: c.id,
+        shortId: SHORT_IDS[c.id] ?? null,
         label: c.label,
         siteScope: c.siteScope ?? null,
         fields: c.fields ?? null,
@@ -104,7 +106,12 @@ export function runChecks(envs, siteId) {
             ...t,
             failures: t.failures.sort((a, b) => a.elementId.localeCompare(b.elementId)),
           }))
-          .sort((a, b) => a.label.localeCompare(b.label)),
+          .sort((a, b) => {
+            if (a.shortId && b.shortId) return a.shortId.localeCompare(b.shortId)
+            if (a.shortId) return -1
+            if (b.shortId) return 1
+            return a.label.localeCompare(b.label)
+          }),
       }
     })
 }

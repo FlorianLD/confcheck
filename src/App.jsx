@@ -73,6 +73,10 @@ function ElementId({ id }) {
   )
 }
 
+function ShortIdChip({ id }) {
+  return <span className="short-id-chip">{id}</span>
+}
+
 function EnvPill({ env, allEnvs, href, onToggle, onVisit, count, active = true }) {
   const style = envColor(env, allEnvs)
   const cls = `env-pill ${active ? '' : 'env-pill--off'}`
@@ -242,17 +246,6 @@ function ResultsView({ results, allEnvs, site }) {
   return (
     <div className="results">
       <div className="results-header">
-        <button
-          type="button"
-          className="collapse-all-btn results-header-cell results-header-cell--row1-left"
-          onClick={toggleAll}
-          aria-pressed={allCollapsed}
-          aria-label={allCollapsed ? 'Expand all sections' : 'Collapse all sections'}
-          title={allCollapsed ? 'Expand all' : 'Collapse all'}
-        >
-          <span className={`chevron ${allCollapsed ? 'chevron--collapsed' : ''}`}>▾</span>
-          <h2>{total} mistake{total === 1 ? '' : 's'} found</h2>
-        </button>
         <div className="results-header-cell results-header-cell--row1-right">
           {site && (site.site_name || site.site_id) && (
             <span className="site-chip">
@@ -261,17 +254,30 @@ function ResultsView({ results, allEnvs, site }) {
             </span>
           )}
         </div>
-        <label className="hide-empty-toggle results-header-cell results-header-cell--row2-left">
-          <span className="toggle">
-            <input
-              type="checkbox"
-              checked={hideEmptyTests}
-              onChange={e => setHideEmptyTests(e.target.checked)}
-            />
-            <span className="toggle-slider" />
-          </span>
-          Hide checks with no mistakes
-        </label>
+        <div className="results-header-cell results-header-cell--row2-left results-title-row">
+          <button
+            type="button"
+            className="collapse-all-btn"
+            onClick={toggleAll}
+            aria-pressed={allCollapsed}
+            aria-label={allCollapsed ? 'Expand all sections' : 'Collapse all sections'}
+            title={allCollapsed ? 'Expand all' : 'Collapse all'}
+          >
+            <span className={`chevron ${allCollapsed ? 'chevron--collapsed' : ''}`}>▾</span>
+            <h2>{total} mistake{total === 1 ? '' : 's'} found</h2>
+          </button>
+          <label className="hide-empty-toggle">
+            <span className="toggle">
+              <input
+                type="checkbox"
+                checked={hideEmptyTests}
+                onChange={e => setHideEmptyTests(e.target.checked)}
+              />
+              <span className="toggle-slider" />
+            </span>
+            Only show mistakes
+          </label>
+        </div>
         <div className="results-envs results-header-cell results-header-cell--row2-right">
           {allEnvs.map(e => (
             <EnvPill
@@ -324,6 +330,9 @@ function ResultsView({ results, allEnvs, site }) {
                   >
                     <span className={`chevron ${testCollapsed ? 'chevron--collapsed' : ''}`}>▾</span>
                     <h4>
+                      {test.shortId && (
+                        <ShortIdChip id={test.shortId} />
+                      )}
                       {test.label}
                       {test.siteScope && (
                         <span className="site-scope-badge" title={`Site-specific check (${test.siteScope})`}>
@@ -356,7 +365,8 @@ function ResultsView({ results, allEnvs, site }) {
                   {!testCollapsed && (
                     <ul>
                       {test.failures.map(f => {
-                        const isLastVisited = lastVisitedId === f.elementId
+                        const visitedKey = `${cat.id}\u0000${test.id}\u0000${f.elementId}`
+                        const isLastVisited = lastVisitedId === visitedKey
                         return (
                           <li key={f.elementId} className={isLastVisited ? 'last-visited' : ''}>
                             <ElementId id={f.elementId} />
@@ -376,7 +386,7 @@ function ResultsView({ results, allEnvs, site }) {
                                   env={e}
                                   allEnvs={allEnvs}
                                   href={elementHref(site, e, f.linkPath)}
-                                  onVisit={() => setLastVisitedId(f.elementId)}
+                                  onVisit={() => setLastVisitedId(visitedKey)}
                                 />
                               ))}
                             </span>
