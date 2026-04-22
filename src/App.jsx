@@ -23,8 +23,8 @@ function envColor(envName, allEnvs) {
 function baseUrl(site, env) {
   if (!site?.site_id || !env) return null
   const host = env.toLowerCase() === 'prod'
-    ? `https://www.admin.eu1.onestock-retail.com`
-    : `https://www.admin.eu1.${env.toLowerCase()}.onestock-retail.com`
+    ? `https://admin.eu1.onestock-retail.com`
+    : `https://admin.eu1.${env.toLowerCase()}.onestock-retail.com`
   return `${host}/${site.site_id}`
 }
 
