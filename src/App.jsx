@@ -7,18 +7,31 @@ import './App.css'
 const ENV_COLOR_MAP = {
   internal: ['#3b82f6', '#1e3a8a'],   // blue
   preprod:  ['#3b82f6', '#1e3a8a'],   // blue (alias of internal)
-  qualif:   ['#ec4899', '#831843'],   // pink
-  staging:  ['#06b6d4', '#0e4a5b'],   // cyan
-  training: ['#06b6d4', '#0e4a5b'],   // cyan (alias of staging)
+  qualif:   ['#eab308', '#713f12'],   // yellow
+  staging:  ['#ec4899', '#831843'],   // pink
+  training: ['#ec4899', '#831843'],   // pink (alias of staging)
   prod:     ['#f97316', '#7c2d12'],   // orange
 }
 
 const ENV_FALLBACK_COLORS = [
-  ['#eab308', '#713f12'],
+  ['#06b6d4', '#0e4a5b'],
   ['#ef4444', '#7f1d1d'],
   ['#6366f1', '#312e81'],
   ['#f43f5e', '#881337'],
 ]
+
+const ENV_ORDER = ['internal', 'preprod', 'qualif', 'staging', 'training', 'prod']
+
+function sortEnvs(envs) {
+  return [...envs].sort((a, b) => {
+    const ka = ENV_ORDER.indexOf(a.toLowerCase())
+    const kb = ENV_ORDER.indexOf(b.toLowerCase())
+    const sa = ka === -1 ? ENV_ORDER.length : ka
+    const sb = kb === -1 ? ENV_ORDER.length : kb
+    if (sa !== sb) return sa - sb
+    return a.localeCompare(b)
+  })
+}
 
 function envColor(envName) {
   const key = (envName || '').toLowerCase()
@@ -381,7 +394,7 @@ function ResultsView({ results, allEnvs, site }) {
                                   title="Clear last visited marker"
                                 >×</button>
                               )}
-                              {f.envs.map(e => (
+                              {sortEnvs(f.envs).map(e => (
                                 <EnvPill
                                   key={e}
                                   env={e}
@@ -426,7 +439,7 @@ export default function App() {
         status: 'done',
         fileName: 'shared view',
         results: shared.results,
-        allEnvs: [...shared.allEnvs].sort(),
+        allEnvs: sortEnvs(shared.allEnvs),
         site: shared.site,
       }
     }
@@ -442,7 +455,7 @@ export default function App() {
     setState({ status: 'loading', fileName: label })
     try {
       const { envs, site } = await parseZips(list)
-      const envNames = Object.keys(envs).sort()
+      const envNames = sortEnvs(Object.keys(envs))
       if (envNames.length === 0) {
         setState({ status: 'error', message: 'No environment data found in the dropped files.' })
         return

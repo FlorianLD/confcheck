@@ -26,10 +26,10 @@ function defaultLinkPath(category, elementId) {
   const first = elementId.split(' → ')[0]
   if (category === 'delivery_configs') return '/delivery/current/configs'
   if (category === 'stock_requests') return `/config/request/stock/${first}`
-  if (category === 'endpoint_requests') return `/config/request/endpoint/${first}`
+  if (category === 'endpoint_requests') return `/config/request/stocklocation/${first}`
   if (category === 'item_requests') return `/config/request/item/${first}`
   if (category === 'rulesets') return `/rulesets/rules/set/${first}/current`
-  if (category === 'ruleset_chainings') return `/rulesets/chainings/${first}/current`
+  if (category === 'ruleset_chainings') return `/rulesets/chain/current/detail/${first}`
   return null
 }
 

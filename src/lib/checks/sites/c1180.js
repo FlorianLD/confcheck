@@ -261,7 +261,9 @@ check('rulesets', 'c1180_timetable_country_mismatch', "Store rule timetable must
     rules.forEach((rule, i) => {
       const ruleCountry = extractCountryFromName(rule?.name)
       if (!ruleCountry) return
-      const tableCountry = extractCountryFromName(rule?.countdown_timetable?.name)
+      const tableName = rule?.countdown_timetable?.name
+      if (!tableName || tableName === 'default_timetable') return
+      const tableCountry = extractCountryFromName(tableName)
       if (tableCountry !== ruleCountry) {
         fails.push(makeRuleFailure(rsId, rule, i))
       }
@@ -556,7 +558,7 @@ check('ruleset_chainings', 'c1180_chaining_first_ruleset_match_id', "Ruleset cha
     if (firstRuleset !== id) {
       fails.push({
         id: rcId,
-        linkPath: `/rulesets/chainings/${rcId}/current`,
+        linkPath: `/rulesets/chain/current/detail/${rcId}`,
       })
     }
   }
