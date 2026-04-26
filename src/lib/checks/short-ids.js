@@ -19,6 +19,9 @@ export const SHORT_IDS = {
   c1180_general_store_rule_config: 'R13',
   c1180_store_before_warehouse_per_split: 'R14',
 
+  // --- Ruleset chainings (C) ---
+  c1180_chaining_first_ruleset_match_id: 'C01',
+
   // --- Stock requests (S) ---
   s_export_no_export_endpoint: 'S01',
   s_non_export_uses_export_endpoint: 'S02',
@@ -39,6 +42,22 @@ export const SHORT_IDS = {
   c1180_global_buffer_not_empty: 'S17',
   c1180_export_diff_unreferenced_stock: 'S18',
   c1180_orchestration_has_global_buffer: 'S19',
+  c1180_cfs_endpoint_use_requested_ids: 'S20',
+
+  // --- Endpoint requests (E) ---
+  e_inherit_in_name: 'E01',
+  e_export_stock_export_disabled: 'E02',
+  e_ffs_module_enabled: 'E03',
+  e_warehouse_classification_match: 'E04',
+  e_export_body_minimal: 'E05',
+
+  // --- Item requests (I) ---
+  i_inherit_in_name: 'I01',
+  c1180_jd_country_language_approved_active: 'I02',
+  c1180_wh_active_warehouse_active: 'I03',
+  c1180_sfs_active_sfs_active: 'I04',
+  c1180_pfs_active_pfs_active: 'I05',
+  c1180_jd_country_language_filters_lang: 'I06',
 
   // --- Delivery configs (D) ---
   d_method_not_in_name: 'D01',

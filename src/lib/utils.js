@@ -77,7 +77,7 @@ export function getRuleEfficiencyValue(rule) {
 export function makeRuleFailure(rsId, rule, index) {
   return {
     id: `${rsId} → ${rule?.name || '(unnamed rule)'}`,
-    linkPath: `/rulesets/rules/set/${rsId}/rule/${index + 1}/current`,
+    linkPath: `/rulesets/rules/set/${rsId}/rule/${index}/current`,
   }
 }
 

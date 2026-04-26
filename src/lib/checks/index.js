@@ -4,7 +4,10 @@ import { SHORT_IDS } from './short-ids.js'
 
 const CATEGORIES = {
   rulesets: 'Rulesets',
+  ruleset_chainings: 'Ruleset chainings',
   stock_requests: 'Stock requests',
+  endpoint_requests: 'Endpoint requests',
+  item_requests: 'Item requests',
   delivery_configs: 'Delivery configs',
 }
 
@@ -23,7 +26,10 @@ function defaultLinkPath(category, elementId) {
   const first = elementId.split(' → ')[0]
   if (category === 'delivery_configs') return '/delivery/current/configs'
   if (category === 'stock_requests') return `/config/request/stock/${first}`
+  if (category === 'endpoint_requests') return `/config/request/endpoint/${first}`
+  if (category === 'item_requests') return `/config/request/item/${first}`
   if (category === 'rulesets') return `/rulesets/rules/set/${first}/current`
+  if (category === 'ruleset_chainings') return `/rulesets/chainings/${first}/current`
   return null
 }
 
@@ -93,7 +99,7 @@ export function runChecks(envs, siteId) {
     })
   }
 
-  const orderedCats = ['rulesets', 'stock_requests', 'delivery_configs']
+  const orderedCats = ['rulesets', 'ruleset_chainings', 'stock_requests', 'endpoint_requests', 'item_requests', 'delivery_configs']
   return orderedCats
     .filter(cid => byCategory.has(cid))
     .map(cid => {

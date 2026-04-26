@@ -4,19 +4,32 @@ import { runChecks, totalFailures } from './lib/checks/index.js'
 import { buildShareUrl, readShareFromUrl, clearShareHash } from './lib/share.js'
 import './App.css'
 
-const ENV_COLORS = [
-  ['#3b82f6', '#1e3a8a'],
-  ['#10b981', '#064e3b'],
-  ['#f59e0b', '#78350f'],
+const ENV_COLOR_MAP = {
+  internal: ['#3b82f6', '#1e3a8a'],   // blue
+  preprod:  ['#3b82f6', '#1e3a8a'],   // blue (alias of internal)
+  qualif:   ['#ec4899', '#831843'],   // pink
+  staging:  ['#06b6d4', '#0e4a5b'],   // cyan
+  training: ['#06b6d4', '#0e4a5b'],   // cyan (alias of staging)
+  prod:     ['#f97316', '#7c2d12'],   // orange
+}
+
+const ENV_FALLBACK_COLORS = [
+  ['#eab308', '#713f12'],
   ['#ef4444', '#7f1d1d'],
-  ['#a855f7', '#581c87'],
-  ['#06b6d4', '#0e4a5b'],
-  ['#ec4899', '#831843'],
+  ['#6366f1', '#312e81'],
+  ['#f43f5e', '#881337'],
 ]
 
-function envColor(envName, allEnvs) {
-  const idx = allEnvs.indexOf(envName)
-  const [bg, fg] = ENV_COLORS[idx % ENV_COLORS.length]
+function envColor(envName) {
+  const key = (envName || '').toLowerCase()
+  const preset = ENV_COLOR_MAP[key]
+  if (preset) {
+    const [bg, fg] = preset
+    return { background: bg, color: '#fff', borderColor: fg }
+  }
+  let hash = 0
+  for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) | 0
+  const [bg, fg] = ENV_FALLBACK_COLORS[Math.abs(hash) % ENV_FALLBACK_COLORS.length]
   return { background: bg, color: '#fff', borderColor: fg }
 }
 
@@ -77,8 +90,8 @@ function ShortIdChip({ id }) {
   return <span className="short-id-chip">{id}</span>
 }
 
-function EnvPill({ env, allEnvs, href, onToggle, onVisit, count, active = true }) {
-  const style = envColor(env, allEnvs)
+function EnvPill({ env, href, onToggle, onVisit, count, active = true }) {
+  const style = envColor(env)
   const cls = `env-pill ${active ? '' : 'env-pill--off'}`
   const content = (
     <>
@@ -109,23 +122,12 @@ function EnvPill({ env, allEnvs, href, onToggle, onVisit, count, active = true }
   return <span className={cls} style={style}>{content}</span>
 }
 
-const LAST_VISITED_KEY = 'confcheck:lastVisitedElement'
-
 function ResultsView({ results, allEnvs, site }) {
   const [collapsedCats, setCollapsedCats] = useState(() => new Set())
   const [collapsedTests, setCollapsedTests] = useState(() => new Set())
   const [activeEnvs, setActiveEnvs] = useState(() => new Set(allEnvs))
   const [hideEmptyTests, setHideEmptyTests] = useState(true)
-  const [lastVisitedId, setLastVisitedId] = useState(() => {
-    try { return localStorage.getItem(LAST_VISITED_KEY) || null } catch { return null }
-  })
-
-  useEffect(() => {
-    try {
-      if (lastVisitedId) localStorage.setItem(LAST_VISITED_KEY, lastVisitedId)
-      else localStorage.removeItem(LAST_VISITED_KEY)
-    } catch { /* ignore */ }
-  }, [lastVisitedId])
+  const [lastVisitedId, setLastVisitedId] = useState(null)
 
   const clearLastVisited = useCallback(() => setLastVisitedId(null), [])
 
@@ -283,7 +285,6 @@ function ResultsView({ results, allEnvs, site }) {
             <EnvPill
               key={e}
               env={e}
-              allEnvs={allEnvs}
               active={activeEnvs.has(e)}
               onToggle={() => toggleEnv(e)}
               count={allEnvs.length > 1 ? perEnv[e] : null}
@@ -384,8 +385,7 @@ function ResultsView({ results, allEnvs, site }) {
                                 <EnvPill
                                   key={e}
                                   env={e}
-                                  allEnvs={allEnvs}
-                                  href={elementHref(site, e, f.linkPath)}
+                                                      href={elementHref(site, e, f.linkPath)}
                                   onVisit={() => setLastVisitedId(visitedKey)}
                                 />
                               ))}
@@ -549,7 +549,7 @@ export default function App() {
         <div className="home-card">
           <h2 className="home-card-title">Configuration check</h2>
           <p className="home-card-desc">
-            Drop one zip per environment. Each zip must contain <code>rulesets</code>, <code>stock_requests</code>, and <code>delivery_configs</code> files.
+            Drop one zip per environment. A check will run on files <code>rulesets</code>, <code>ruelset_chainings</code>, <code>stock_requests</code>, <code>item_requests</code>, <code>endpoint_requests</code> and <code>delivery_configs</code>
           </p>
           <div
             className={`folder-drop-zone folder-drop-zone--large${dragOver ? ' dragging' : ''}`}

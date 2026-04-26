@@ -27,23 +27,27 @@ function check(category, id, label, run, meta) {
 
 // ---------------------------- RULESETS ----------------------------
 
-check('rulesets', 'r_store_empty_calendars', 'Store rules must not have an empty calendar', (envData) => {
+check('rulesets', 'r_store_empty_calendars', 'Store rules must use a non-empty store calendar', (envData) => {
   const fails = []
   for (const [rsId, ruleset] of Object.entries(envData.rulesets?.rulesets || {})) {
     const rules = getRulesetRules(ruleset)
     rules.forEach((rule, i) => {
       if (!isStoreRule(rule)) return
+      const timetableName = rule?.countdown_timetable?.name
       const timespans = rule?.countdown_timetable?.current_timetable?.timespans
-      const empty = !timespans || timespans.length === 0 ||
-        timespans.every(ts => ts?.options?.rules_enabled === false)
-      if (empty) fails.push(makeRuleFailure(rsId, rule, i))
+      const isDefaultName = timetableName === 'default_timetable'
+      const hasTimespans = Array.isArray(timespans) && timespans.length > 0
+      if (isDefaultName || !hasTimespans) {
+        fails.push(makeRuleFailure(rsId, rule, i))
+      }
     })
   }
   return fails
 }, {
   fields: [
     'value.current_ruleset.rules[].filter',
-    'value.current_ruleset.rules[].countdown_timetable.current_timetable.timespans[].options.rules_enabled',
+    'value.current_ruleset.rules[].countdown_timetable.name',
+    'value.current_ruleset.rules[].countdown_timetable.current_timetable.timespans',
   ],
 })
 
@@ -238,7 +242,7 @@ check('stock_requests', 's_non_export_uses_export_endpoint', "Non-export request
   ],
 })
 
-check('stock_requests', 's_endpoint_filter_use_requested_ids_true', "Requests must not have filtering enabled for endpoint request", (envData) => {
+check('stock_requests', 's_endpoint_filter_use_requested_ids_true', "Requests must not have filtering enabled for endpoint request (except 'cfs' endpoints)", (envData) => {
   const fails = []
   for (const [srId, sr] of Object.entries(envData.stock_requests?.stock_requests || {})) {
     if (isIgnoredStockRequest(srId)) continue
@@ -246,6 +250,8 @@ check('stock_requests', 's_endpoint_filter_use_requested_ids_true', "Requests mu
     for (const [aggName, agg] of Object.entries(aggregates)) {
       const ef = agg?.endpoint_filter
       if (!ef) continue
+      const reqName = ef?.request_name
+      if (typeof reqName === 'string' && reqName.toLowerCase().includes('cfs')) continue
       if (ef.use_requested_ids === true) {
         fails.push({ id: `${srId} → ${aggName}` })
       }
@@ -254,6 +260,7 @@ check('stock_requests', 's_endpoint_filter_use_requested_ids_true', "Requests mu
   return fails
 }, {
   fields: [
+    'value.current.body.aggregates.*.endpoint_filter.request_name',
     'value.current.body.aggregates.*.endpoint_filter.use_requested_ids',
   ],
 })
@@ -460,6 +467,133 @@ check('stock_requests', 's_detailed_no_global_reservations', "Detailed requests 
   fields: [
     'name',
     'value.current.body.deduction.global_reservation',
+  ],
+})
+
+// ---------------------------- ENDPOINT REQUESTS ----------------------------
+
+check('endpoint_requests', 'e_inherit_in_name', "Endpoint request name must inherit from the corresponding parent", (envData) => {
+  const fails = []
+  for (const [erId, er] of Object.entries(envData.endpoint_requests?.endpoint_requests || {})) {
+    const inherit = er?.value?.current?.body?.inherit_from_request
+    if (!inherit || typeof inherit !== 'string') continue
+    if (inherit === 'endpoints') continue
+    const name = (er?.name || erId || '').toString()
+    if (!name.includes(inherit)) {
+      fails.push({ id: erId })
+    }
+  }
+  return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.inherit_from_request',
+  ],
+})
+
+check('endpoint_requests', 'e_export_stock_export_disabled', "Export endpoint requests must have export parameter enabled", (envData) => {
+  const fails = []
+  for (const [erId, er] of Object.entries(envData.endpoint_requests?.endpoint_requests || {})) {
+    const name = (er?.name || erId || '').toString()
+    if (!name.toLowerCase().includes('_export')) continue
+    const opts = er?.value?.current?.body?.options
+    if (opts?.stock_export_disabled !== false) {
+      fails.push({ id: erId })
+    }
+  }
+  return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.options.stock_export_disabled',
+  ],
+})
+
+check('endpoint_requests', 'e_ffs_module_enabled', "Endpoint requests for FFS must have FFS enabled", (envData) => {
+  const fails = []
+  for (const [erId, er] of Object.entries(envData.endpoint_requests?.endpoint_requests || {})) {
+    const name = (er?.name || erId || '').toString()
+    if (!name.toLowerCase().endsWith('_ffs')) continue
+    const ffs = er?.value?.current?.body?.modules?.ffs
+    if (ffs !== true) {
+      fails.push({ id: erId })
+    }
+  }
+  return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.modules.ffs',
+  ],
+})
+
+check('endpoint_requests', 'e_warehouse_classification_match', "Warehouse endpoint requests must have a group filter matching the warehouse name", (envData) => {
+  const fails = []
+  for (const [erId, er] of Object.entries(envData.endpoint_requests?.endpoint_requests || {})) {
+    const name = (er?.name || erId || '').toString()
+    const lower = name.toLowerCase()
+    if (!lower.startsWith('warehouses_')) continue
+    if (lower.includes('_export')) continue
+    const expected = name.substring('warehouses_'.length)
+    const group = er?.value?.current?.body?.classification?.[0]?.group
+    const groupOk = Array.isArray(group) && group.length > 0 && Array.isArray(group[0]) && group[0].length > 0
+    if (!groupOk || group[0][0] !== expected) {
+      fails.push({ id: erId })
+    }
+  }
+  return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.classification',
+  ],
+})
+
+check('endpoint_requests', 'e_export_body_minimal', "Export endpoint requests must only have export parameter", (envData) => {
+  const fails = []
+  const allowedTop = new Set(['inherit_from_request', 'options'])
+  for (const [erId, er] of Object.entries(envData.endpoint_requests?.endpoint_requests || {})) {
+    const name = (er?.name || erId || '').toString()
+    if (!name.toLowerCase().includes('_export')) continue
+    const body = er?.value?.current?.body
+    if (!body || typeof body !== 'object') {
+      fails.push({ id: erId })
+      continue
+    }
+    const topKeys = Object.keys(body)
+    const topOk = topKeys.length === 2 && topKeys.every(k => allowedTop.has(k))
+    const opts = body.options
+    const optsKeys = (opts && typeof opts === 'object') ? Object.keys(opts) : []
+    const optsOk = optsKeys.length === 1 && optsKeys[0] === 'stock_export_disabled'
+    if (!topOk || !optsOk) {
+      fails.push({ id: erId })
+    }
+  }
+  return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body',
+  ],
+})
+
+// ---------------------------- ITEM REQUESTS ----------------------------
+
+check('item_requests', 'i_inherit_in_name', "Item request name must contain its inherit_from_request value", (envData) => {
+  const fails = []
+  for (const [irId, ir] of Object.entries(envData.item_requests?.item_requests || {})) {
+    const inherit = ir?.value?.current?.body?.inherit_from_request
+    if (!inherit || typeof inherit !== 'string') continue
+    const name = (ir?.name || irId || '').toString()
+    if (!name.includes(inherit)) {
+      fails.push({ id: irId })
+    }
+  }
+  return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.inherit_from_request',
   ],
 })
 

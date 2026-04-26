@@ -60,6 +60,25 @@ function eachDeliveryConfig(envData, fn) {
   }
 }
 
+function findFeatureValue(features, key) {
+  if (!Array.isArray(features)) return undefined
+  for (const entry of features) {
+    if (entry && typeof entry === 'object' && Object.prototype.hasOwnProperty.call(entry, key)) {
+      return entry[key]
+    }
+  }
+  return undefined
+}
+
+function isFeatureTrue(value) {
+  if (value === true || value === 'true') return true
+  if (Array.isArray(value)) {
+    const first = Array.isArray(value[0]) ? value[0][0] : value[0]
+    return first === true || first === 'true'
+  }
+  return false
+}
+
 check('rulesets', 'c1180_store_rule_triplet_pattern', "Store rules must be used in priority sequence 0.95, 0.85, no priority", (envData) => {
   const fails = []
   for (const [rsId, ruleset] of Object.entries(envData.rulesets?.rulesets || {})) {
@@ -386,6 +405,166 @@ check('rulesets', 'c1180_store_before_warehouse_per_split', "Warehouse rules mus
   fields: [
     'value.current_ruleset.rules[].name',
     'value.current_ruleset.rules[].filter',
+  ],
+})
+
+check('stock_requests', 'c1180_cfs_endpoint_use_requested_ids', "Collection store endpoint requests must have filtering enabled", (envData) => {
+  const fails = []
+  for (const [srId, sr] of Object.entries(envData.stock_requests?.stock_requests || {})) {
+    if (isIgnoredStockRequest(srId)) continue
+    const aggregates = getStockRequestAggregates(sr)
+    for (const [aggName, agg] of Object.entries(aggregates)) {
+      const ef = agg?.endpoint_filter
+      if (!ef) continue
+      const reqName = ef?.request_name
+      if (typeof reqName !== 'string' || !reqName.toLowerCase().includes('cfs')) continue
+      if (ef.use_requested_ids !== true) {
+        fails.push({
+          id: `${srId} → ${aggName}`,
+          linkPath: `/config/request/stock/${srId}`,
+        })
+      }
+    }
+  }
+  return fails
+}, {
+  fields: [
+    'value.current.body.aggregates.*.endpoint_filter.request_name',
+    'value.current.body.aggregates.*.endpoint_filter.use_requested_ids',
+  ],
+})
+
+check('item_requests', 'c1180_jd_country_language_approved_active', "Item requests must have 'approved_active' set to true", (envData) => {
+  const fails = []
+  const pattern = /^items_jd_[a-z]{2}_[a-z]{2}$/i
+  for (const [irId, ir] of Object.entries(envData.item_requests?.item_requests || {})) {
+    const name = (ir?.name || irId || '').toString()
+    if (!pattern.test(name)) continue
+    const features = ir?.value?.current?.body?.filters?.features
+    const value = findFeatureValue(features, 'approved_active')
+    if (value === undefined || !isFeatureTrue(value)) {
+      fails.push({
+        id: irId,
+        linkPath: `/config/request/item/${irId}`,
+      })
+    }
+  }
+  return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.filters.features[].approved_active',
+  ],
+})
+
+check('item_requests', 'c1180_wh_active_warehouse_active', "Warehouse item requests must have 'warehouse_active' set to true", (envData) => {
+  const fails = []
+  for (const [irId, ir] of Object.entries(envData.item_requests?.item_requests || {})) {
+    const name = (ir?.name || irId || '').toString()
+    if (!name.toLowerCase().endsWith('wh_active')) continue
+    const features = ir?.value?.current?.body?.filters?.features
+    const value = findFeatureValue(features, 'warehouse_active')
+    if (value === undefined || !isFeatureTrue(value)) {
+      fails.push({
+        id: irId,
+        linkPath: `/config/request/item/${irId}`,
+      })
+    }
+  }
+  return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.filters.features[].warehouse_active',
+  ],
+})
+
+check('item_requests', 'c1180_sfs_active_sfs_active', "Store item requests must have 'sfs_active' set to true", (envData) => {
+  const fails = []
+  for (const [irId, ir] of Object.entries(envData.item_requests?.item_requests || {})) {
+    const name = (ir?.name || irId || '').toString()
+    if (!name.toLowerCase().endsWith('sfs_active')) continue
+    const features = ir?.value?.current?.body?.filters?.features
+    const value = findFeatureValue(features, 'sfs_active')
+    if (value === undefined || !isFeatureTrue(value)) {
+      fails.push({
+        id: irId,
+        linkPath: `/config/request/item/${irId}`,
+      })
+    }
+  }
+  return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.filters.features[].sfs_active',
+  ],
+})
+
+check('item_requests', 'c1180_pfs_active_pfs_active', "PFS item requests must have 'pfs_active' set to true", (envData) => {
+  const fails = []
+  for (const [irId, ir] of Object.entries(envData.item_requests?.item_requests || {})) {
+    const name = (ir?.name || irId || '').toString()
+    if (!name.toLowerCase().endsWith('pfs_active')) continue
+    const features = ir?.value?.current?.body?.filters?.features
+    const value = findFeatureValue(features, 'pfs_active')
+    if (value === undefined || !isFeatureTrue(value)) {
+      fails.push({
+        id: irId,
+        linkPath: `/config/request/item/${irId}`,
+      })
+    }
+  }
+  return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.filters.features[].pfs_active',
+  ],
+})
+
+check('item_requests', 'c1180_jd_country_language_filters_lang', "Item requests must have lang filter matching the request name", (envData) => {
+  const fails = []
+  const pattern = /^items_jd_([a-z]{2})_([a-z]{2})$/i
+  for (const [irId, ir] of Object.entries(envData.item_requests?.item_requests || {})) {
+    const name = (ir?.name || irId || '').toString()
+    const m = pattern.exec(name)
+    if (!m) continue
+    const expected = `jd_${m[1].toLowerCase()}_${m[2].toLowerCase()}`
+    const lang = ir?.value?.current?.body?.filters?.lang
+    if (lang !== expected) {
+      fails.push({
+        id: irId,
+        linkPath: `/config/request/item/${irId}`,
+      })
+    }
+  }
+  return fails
+}, {
+  fields: [
+    'name',
+    'value.current.body.filters.lang',
+  ],
+})
+
+check('ruleset_chainings', 'c1180_chaining_first_ruleset_match_id', "Ruleset chaining id must match ruleset id", (envData) => {
+  const fails = []
+  for (const [rcId, rc] of Object.entries(envData.ruleset_chainings?.ruleset_chainings || {})) {
+    const id = rc?.value?.id
+    const firstRuleset = rc?.value?.current?.rulesets_list?.[0]?.ruleset_id
+    if (id == null) continue
+    if (firstRuleset !== id) {
+      fails.push({
+        id: rcId,
+        linkPath: `/rulesets/chainings/${rcId}/current`,
+      })
+    }
+  }
+  return fails
+}, {
+  fields: [
+    'value.id',
+    'value.current.rulesets_list[0].ruleset_id',
   ],
 })
 

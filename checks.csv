@@ -1,0 +1,58 @@
+ID,Category,Site,Label
+R01,Rulesets,,Store rules must use a non-empty store calendar
+R02,Rulesets,,Warehouse rules must have automatic warehouse claim parameter
+R03,Rulesets,,Ruleset with warehouse rules must use a stock request with warehouse endpoint
+R04,Rulesets,,Ruleset with store rules must use a stock request with store endpoint
+R05,Rulesets,,Country in rules must match country in stock request
+R06,Rulesets,,Store rules must have a timeout
+R07,Rulesets,,Ruleset with automatic claiming on collection store must use a CKC-enabled stock request
+R08,Rulesets,,Country in ruleset must match country in ruleset name
+R09,Rulesets,c1180,"Store rules must be used in priority sequence 0.95, 0.85, no priority"
+R10,Rulesets,c1180,Store rule timetable must match country in rule name
+R11,Rulesets,c1180,"P1 store rules must have max 10 candidates, rule_timeout 3600, and sorting by stock coverage (desc)"
+R12,Rulesets,c1180,"P2 store rules must have max 20 candidates, rule_timeout 3600, and sorting by stock coverage (desc)"
+R13,Rulesets,c1180,No priority store rules must have timeout of 7200
+R14,Rulesets,c1180,Warehouse rules must always come after the store rules at each split level
+C01,Ruleset chainings,c1180,Ruleset chaining id must match ruleset id
+S01,Stock requests,,Export requests must use endpoint query with 'export' parameter
+S02,Stock requests,,Non-export requests must not use an export endpoint request
+S03,Stock requests,,Requests must not have filtering enabled for endpoint request (except 'cfs' endpoints)
+S04,Stock requests,,Requests must have filtering enabled for item request
+S05,Stock requests,,Full export requests must have export parameter set to full
+S06,Stock requests,,Diff export requests must have export parameter set to diff
+S07,Stock requests,,Orchestration detailed requests must be used in a ruleset
+S08,Stock requests,,DP detailed requests must be used in a delivery config
+S09,Stock requests,,Export requests diff key must match request name
+S10,Stock requests,,Unified requests aggregates must inherit from the detailed request
+S11,Stock requests,,Unified requests must have unification enabled
+S12,Stock requests,,Unified requests must inherit from the right detailed request
+S13,Stock requests,,Detailed requests must have global reservations enabled
+S14,Stock requests,c1180,Orchestration requests must use 'orchestration_buffer' in endpoint buffer
+S15,Stock requests,c1180,"Export, orchestration and DP requests must take all UATFs into account"
+S16,Stock requests,c1180,"Export, orchestration and DP requests must take all stock location reservations into account"
+S17,Stock requests,c1180,Export and DP requests must take all global buffers into account
+S18,Stock requests,c1180,Export diff requests must export unreferenced items
+S19,Stock requests,c1180,Orchestration requests must not take global buffers into account
+S20,Stock requests,c1180,Collection store endpoint requests must have filtering enabled
+E01,Endpoint requests,,Endpoint request name must inherit from the corresponding parent
+E02,Endpoint requests,,Export endpoint requests must have export parameter enabled
+E03,Endpoint requests,,Endpoint requests for FFS must have FFS enabled
+E04,Endpoint requests,,Warehouse endpoint requests must have a group filter matching the warehouse name
+E05,Endpoint requests,,Export endpoint requests must only have export parameter
+I01,Item requests,,Item request name must contain its inherit_from_request value
+I02,Item requests,c1180,Item requests must have 'approved_active' set to true
+I03,Item requests,c1180,Warehouse item requests must have 'warehouse_active' set to true
+I04,Item requests,c1180,Store item requests must have 'sfs_active' set to true
+I05,Item requests,c1180,PFS item requests must have 'pfs_active' set to true
+I06,Item requests,c1180,Item requests must have lang filter matching the request name
+D01,Delivery configs,,Delivery method must match delivery config
+D02,Delivery configs,,CKC delivery configs must have CKC module enabled
+D03,Delivery configs,,Country in delivery config name must match country in stock request
+D04,Delivery configs,,CKC express configs must have operation 'from_destination'
+D05,Delivery configs,,Carrier options must match delivery config name
+D06,Delivery configs,,Delivery configs unified stock request must match the detailed one
+D07,Delivery configs,c1180,Delivery method 'standard_home_delivery' must use operation standard_prep_time
+D08,Delivery configs,c1180,Delivery method 'express_home_delivery' must use operation express_prep_time
+D09,Delivery configs,c1180,Delivery method 'next_day_home_delivery' must use operation next_day_prep_time
+D10,Delivery configs,c1180,"Delivery method 'click_collect' must use operations ckc_recep_time, standard_prep_time"
+D11,Delivery configs,c1180,"Delivery method 'same_day_click_collect' must use operations ckc_express_prep_time, prep_milestone"

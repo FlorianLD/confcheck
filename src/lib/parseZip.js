@@ -1,6 +1,6 @@
 import JSZip from 'jszip'
 
-const TARGET_BASE_NAMES = new Set(['rulesets', 'stock_requests', 'delivery_configs'])
+const TARGET_BASE_NAMES = new Set(['rulesets', 'stock_requests', 'delivery_configs', 'endpoint_requests', 'item_requests', 'ruleset_chainings'])
 const MAX_FILES = 4
 
 function stripJsonc(text) {
