@@ -570,4 +570,72 @@ check('ruleset_chainings', 'c1180_chaining_first_ruleset_match_id', "Ruleset cha
   ],
 })
 
+check('stock_requests', 'c1180_export_naming_pattern', "Export requests must follow the standard naming pattern", (envData) => {
+  const fails = []
+  const pattern = /^export_(detailed|unified)_[a-z]{2}_jd(_(stores|kingsway|hem|heerlen|roi|jd_only|dropship_marketplace))?_(full|diff)$/
+  for (const [srId, sr] of Object.entries(envData.stock_requests?.stock_requests || {})) {
+    if (isIgnoredStockRequest(srId)) continue
+    const name = (sr?.name || srId || '').toString()
+    if (!name.startsWith('export_')) continue
+    if (!pattern.test(name)) {
+      fails.push({
+        id: srId,
+        linkPath: `/config/request/stock/${srId}`,
+      })
+    }
+  }
+  return fails
+}, {
+  fields: [
+    'name',
+  ],
+})
+
+check('stock_requests', 'c1180_dp_naming_pattern', "DP requests must follow the standard naming pattern", (envData) => {
+  const fails = []
+  const pattern = /^dp_(detailed|unified)_[a-z]{2}_jd_(standard_hd|ckc_dts|web_app_ckc_pfs|express_hd|jd_only_standard_hd|dropship_marketplace_standard_hd|standard_int_hd)$/
+  for (const [srId, sr] of Object.entries(envData.stock_requests?.stock_requests || {})) {
+    if (isIgnoredStockRequest(srId)) continue
+    const name = (sr?.name || srId || '').toString()
+    if (!name.startsWith('dp_')) continue
+    if (!pattern.test(name)) {
+      fails.push({
+        id: srId,
+        linkPath: `/config/request/stock/${srId}`,
+      })
+    }
+  }
+  return fails
+}, {
+  fields: [
+    'name',
+  ],
+})
+
+check('stock_requests', 'c1180_orchestration_naming_pattern', "Orchestration requests must follow the standard naming pattern", (envData) => {
+  const fails = []
+  const patterns = [
+    /^orchestration_(detailed|unified)_[a-z]{2}_jd(_(web_app|kiosk))?_(standard|express)_hd(_[a-z0-9_]+)?$/,
+    /^orchestration_(detailed|unified)_[a-z]{2}_jd(_(web_app|kiosk))?_ckc_dts$/,
+    /^orchestration_(detailed|unified)_[a-z]{2}_jd(_web_app)?_ckc_pfs$/,
+    /^orchestration_(detailed|unified)_[a-z]{2}_jd(_web_app)?_standard_int_hd$/,
+  ]
+  for (const [srId, sr] of Object.entries(envData.stock_requests?.stock_requests || {})) {
+    if (isIgnoredStockRequest(srId)) continue
+    const name = (sr?.name || srId || '').toString()
+    if (!name.startsWith('orchestration_')) continue
+    if (!patterns.some(p => p.test(name))) {
+      fails.push({
+        id: srId,
+        linkPath: `/config/request/stock/${srId}`,
+      })
+    }
+  }
+  return fails
+}, {
+  fields: [
+    'name',
+  ],
+})
+
 export default CHECKS

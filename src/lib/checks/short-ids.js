@@ -43,6 +43,9 @@ export const SHORT_IDS = {
   c1180_export_diff_unreferenced_stock: 'S18',
   c1180_orchestration_has_global_buffer: 'S19',
   c1180_cfs_endpoint_use_requested_ids: 'S20',
+  c1180_export_naming_pattern: 'S21',
+  c1180_dp_naming_pattern: 'S22',
+  c1180_orchestration_naming_pattern: 'S23',
 
   // --- Endpoint requests (E) ---
   e_inherit_in_name: 'E01',
