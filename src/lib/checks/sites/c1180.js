@@ -37,7 +37,10 @@ function sortCriteriaMatches(actual, expected) {
 }
 
 function hasEmptyStockConstraints(rule) {
-  return Array.isArray(rule?.stock_constraints) && rule.stock_constraints.length === 0
+  const sc = rule?.stock_constraints
+  if (sc == null) return false
+  // Accept both an empty array ([]) and an empty object ({}) as "no constraints"
+  return typeof sc === 'object' && Object.keys(sc).length === 0
 }
 
 const METHOD_OPERATIONS = {
@@ -380,6 +383,8 @@ for (const [method, phases] of Object.entries(METHOD_OPERATIONS)) {
 check('rulesets', 'c1180_store_before_warehouse_per_split', "Warehouse rules must always come after the store rules at each split level", (envData) => {
   const fails = []
   for (const [rsId, ruleset] of Object.entries(envData.rulesets?.rulesets || {})) {
+    // Does not apply to GB (jdgb) rulesets
+    if (rsId.toLowerCase().includes('jdgb')) continue
     const rules = getRulesetRules(ruleset)
     const ranked = []
     rules.forEach((rule, i) => {
